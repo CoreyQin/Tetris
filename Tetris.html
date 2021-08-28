@@ -1,0 +1,243 @@
+<!doctype html>
+<html>
+    <head>
+        <title>俄罗斯方块</title>
+    </head>
+
+    <body>
+        <div id = "box"
+             style = "margin : 20px auto;
+                      text-align : center;
+                      width : 252px;
+                      font : 25px / 25px 宋体;
+                      background : #000;
+                      color : #9f9;
+                      border : #999 20px ridge;
+                      text-shadow : 2px 3px 1px #0f0;">
+        </div>
+
+        <script>
+            var rowNumber = 22;
+            var columnNumer = 12;
+            var tatris = [[0x6600],
+                          [0x2222, 0x0f00],
+                          [0xc600, 0x2640],
+                          [0x6c00, 0x4620],
+                          [0x4460, 0x2e0, 0x6220, 0x740],
+                          [0x2260, 0x0e20, 0x6440, 0x4700],
+                          [0x2620, 0x720, 0x2320, 0x2700]];
+                       
+            var dia,pos,bak;
+
+            var keycom = {  "38" : "rotate()",
+                            "40" : "down()",
+                            "37" : "move(true)",
+                            "39" : "move(false)"};
+
+            document.onkeydown = function(e) {
+                //eval生成的JavaScript代码，在这里就被执行了
+                eval(keycom[(e ? e : event).keyCode]);
+            };
+
+            function rotate(){
+                bakShape();
+                var newIndex = (pos.s + 1)% dia.length;
+                var newshape = getShapeArray(dia[newIndex]);
+                pos.shape = newshape;
+                pos.s = newIndex;
+                if(isOverlap(pos, map)){
+                    pos = bak;
+                    return;
+                }
+                updatePage();
+            }
+
+            function move(isLeft){
+                bakShape();
+                if(isLeft){
+                    pos.x--;
+                }else{
+                    pos.x++;
+                }
+
+                if(isOverlap(pos,map)){
+                    pos = bak;
+                }else{
+                    updatePage();
+                }
+            }
+
+            var map = [];
+            var displayArray = [];
+           
+
+            function initialMap(){
+                for(var i = 0; i < rowNumber; i++){
+                    map[i] = [];
+                    map[i][0] = 1;
+                    for(var j = 1; j < columnNumer-1; j++){
+                        map[i][j] = 0;
+                    }   
+                    map[i][columnNumer-1] = 1;
+                }
+                map[rowNumber] = [];
+                for(var i = 0; i < columnNumer; i++ ){
+                    map[rowNumber][i] = 1;
+                }
+            }               
+           
+            initialMap();
+            start();
+            var run = setInterval("down()", 500);
+
+            function start(){
+                initialShapeAndPos()
+                //updatePage();
+            }
+
+            function bakShape(){
+                bak = {shape : pos.shape.slice(0), y : pos.y, x : pos.x, s:pos.s};
+            }
+
+            function down(){
+                bakShape();
+                pos.y++;
+                
+                if(isOverlap(pos, map)){
+                    pos = bak;
+                    map = mergeShapeWithMap(bak.shape, map);
+                    // the top is full? over
+                    if(hasBit(map[1].slice(1,-1))){
+                        over();
+                    }
+                    delteRowIfFull();
+                    start();
+                }else{
+                    // full row? delete this row
+                    
+                    updatePage();
+                }
+            }
+
+            function delteRowIfFull(){
+                for(var i = pos.y; i< rowNumber; i++){
+                    if(map[i].toString() == "1,1,1,1,1,1,1,1,1,1,1,1"){
+                        map.splice(i, 1);
+                        map.unshift([1,0,0,0,0,0,0,0,0,0,0,1]);
+                    }
+                }
+            }
+
+            function hasBit(row){
+                for(var i =0; i < row.length; i++){
+                    if(isTrue(row[i])){
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function over(){
+                document.onkeydown = null;
+                //清理之前设置的俄罗斯方块下落定时器
+                clearInterval(run);
+                //弹出游戏结束对话框
+                alert("游戏结束");
+            }
+
+            function isOverlap(position, map){
+                var shapeArray = position.shape;
+                for(var i = 0; i < 4; i++){
+                    for(var j = 0; j< 4; j++){
+                        if(isTrue(shapeArray[i][j]) && isTrue(map[i + position.y][j + position.x])){
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            function isTrue(bit){
+                if(bit == 1 || bit == "1"){
+                    return true;
+                }
+                return false;
+            }
+
+            function initialShapeAndPos(){
+                dia = tatris[~~(Math.random() * 7)];
+                var index = ~~(Math.random() * dia.length);
+                bak = pos = {   
+                                x:4, 
+                                y:0,
+                                shape:[],
+                                s : index
+                            };
+                pos.shape = getShapeArray(dia[index]);
+            }
+
+            function display(mergeArray){
+                // replace 1 with special character
+                var displayString = "";
+                for(var i = 0; i< mergeArray.length-1; i++){
+                    var row = mergeArray[i];
+                    for(var j = 1; j < row.length-1; j++){
+                        displayString += row[j];
+                    }
+                    displayString += "<br/>";                    
+                }
+                document.getElementById("box").innerHTML = displayString.replace(/1/g, "\u25a0").replace(/0/g, "\u3000");
+            }
+
+            function updatePage(){
+                // merge shape with map
+                var mergeArray = mergeShapeWithMap(pos.shape, map);
+
+                // draw the map
+                display(mergeArray);
+            }
+
+
+            function mergeShapeWithMap(shape, map){
+                function mergeRow(shapeRow, mapRow){
+                    for(var i = pos.x; i< pos.x + 4; i++){
+                        if(shapeRow[i-pos.x] == 1 || shapeRow[i-pos.x] == "1"){
+                            mapRow[i] = 1;
+                        }
+                    }
+                }
+
+                var mergeMap = copyArray(map);
+                for(var i = pos.y; i < pos.y+4; i++){
+                   var mapRow = mergeMap[i];
+                   var shapeRow = shape[i-pos.y];
+                   mergeRow(shapeRow, mapRow);
+                }
+                return mergeMap;
+            }
+
+            function copyArray(array){
+                let re = [];
+                for(let i = 0; i< array.length; i++ ){
+                    let [...row] = array[i];
+                    re.push(row);
+                }
+                return re;
+            }
+
+            function getShapeArray(shapeData){
+                var fk = [];
+                for(var i = 0; i < 4; i++) {
+                    var rowData = (shapeData >> (12 - i * 4) & 0x000f);
+                    var byinaryString = rowData.toString(2);
+                    while(byinaryString.length < 4){
+                        byinaryString = "0" + byinaryString;
+                    }
+                    fk[i] = byinaryString.split("");
+                }
+                return fk;
+            }
+            
+        </script>
+    </body>
+</html>
